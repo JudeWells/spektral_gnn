@@ -45,6 +45,36 @@ def parse_df(ppi_df):
             MomentInvariants.from_prody_atomgroup(dom_str, atom_grp, split_type=SplitType.RADIUS, split_size=10))
     return atom_groups, invariants_kmer, invariants_radius
 
+def construct_distance_matrix(moment_invariant):
+    # this function constructs a distance matrix for all features that
+    n_res = moment_invariant.length
+    distances = np.zeros(n_res, n_res)
+    for i in range(n_res):
+        for j in range(i+1, n_res):
+            res1, res2 = moment_invariant.coordinates[i], moment_invariant.coordinates[j]
+            distances[i,j] = distances[j,i] = np.linalg.norm(res1 - res2)
+
+def make_amino_dicts():
+    residue_letters = ['A', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'K', 'L', 'M', 'N', 'P', 'Q', 'R', 'S', 'T', 'V', 'W', 'Y']
+    res_to_idx = dict(zip(residue_letters, range(len(residue_letters))))
+    idx_to_res = dict(zip(range(len(residue_letters)),  residue_letters))
+    return res_to_idx, idx_to_res
+
+def make_one_hot_res(one_protein, res_to_idx):
+    sequence = [res_to_idx[res] for res in list(one_protein.sequence)]
+    shape = (one_protein.length, len(res_to_idx))
+    one_hot = np.zeros(shape)
+    one_hot[range(one_protein.length), sequence] = 1
+    return one_hot
+
+def construct_invariant_feature_set(invariants_kmer, invariants_radius, res_to_idx):
+    for i in range(len(invariants_kmer)):
+        one_hot_res = make_one_hot_res(invariants_kmer[i], res_to_idx)
+        one_protein_features = np.append(invariants_kmer[i].moments, invariants_radius[i].moments, axis=1)
+
+
+
+
 if __name__ == '__main__':
     features_ff = ['scons', 'avg_scons', 'sc5_gs', 'sc5_scons', 'conserved_hotspot_struc_neighbourhood',
                    'conserved_surface_hotspot_struc_neighbourhood', 'highly_conserved_struc_neighbourhood',
@@ -77,6 +107,7 @@ if __name__ == '__main__':
     x = df[features_ff].values
     os.chdir('../protein')
     atom_groups, invariants_kmer, invariants_radius = parse_df(df)
+    res_to_idx, idx_to_res = make_amino_dicts(invariants_kmer)
     breakpoint_var = True
 
 
