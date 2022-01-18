@@ -2,6 +2,7 @@ import os
 import numpy as np
 import pandas as pd
 import prody
+from scipy.sparse import csr_matrix
 from geometricus import MomentInvariants, SplitType
 
 
@@ -54,6 +55,42 @@ def construct_distance_matrix(moment_invariant):
             res1, res2 = moment_invariant.coordinates[i], moment_invariant.coordinates[j]
             distances[i,j] = distances[j,i] = np.linalg.norm(res1 - res2)
 
+def make_sparse_matrix(moment_invariants):
+    n_domains = len(moment_invariants)
+    n_res = sum([invariant.length for invariant in moment_invariants])
+    shape = (n_res, n_res) # size of the matrix is the number of amino acids across all proteins
+    row = []
+    col = []
+    data = []
+    row_counter = 0
+    for dom_idx in range(n_domains):
+        domain = moment_invariants[dom_idx]
+        for i in range(domain.length):
+            for j in range(i+1, i+domain.length):
+                res1, res2 = domain.coordinates[i], domain.coordinates[j]
+                dist = np.linalg.norm(res1 - res2)
+                row.append(i)
+                col.append(j)
+                data.append(dist)
+                if i!=j:
+                    row.append(row_counter)
+                    col.append(j)
+                    data.append(dist)
+            row_counter +=1
+    sparse_matrix = csr_matrix((data, (row, col)), shape=shape)
+    return sparse_matrix
+                    
+
+
+
+
+
+def make_sparse_matrix_example():
+    row = np.array([0, 0, 1, 2, 2, 2])
+    col = np.array([0, 2, 2, 0, 1, 2])
+    data = np.array([1, 2, 3, 4, 5, 6])
+    csr_matrix((data, (row, col)), shape=(3, 3))
+
 def make_amino_dicts():
     residue_letters = ['A', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'K', 'L', 'M', 'N', 'P', 'Q', 'R', 'S', 'T', 'V', 'W', 'Y']
     res_to_idx = dict(zip(residue_letters, range(len(residue_letters))))
@@ -68,9 +105,12 @@ def make_one_hot_res(one_protein, res_to_idx):
     return one_hot
 
 def construct_invariant_feature_set(invariants_kmer, invariants_radius, res_to_idx):
+    # one_hot_res will act as labels
+
     for i in range(len(invariants_kmer)):
         one_hot_res = make_one_hot_res(invariants_kmer[i], res_to_idx)
         one_protein_features = np.append(invariants_kmer[i].moments, invariants_radius[i].moments, axis=1)
+        one_protein_features = np.append()
 
 
 
